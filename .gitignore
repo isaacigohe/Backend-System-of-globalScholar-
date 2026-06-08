@@ -6,5 +6,5 @@ __pycache__/
 db.sqlite3
 *.log
 media/
-staticfiles/
+staticfiles /
 .DS_Store
