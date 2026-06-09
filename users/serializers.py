@@ -16,7 +16,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = [
+        fields  = [
             "id", "email", "first_name", "last_name", "role",
             "password", "password_confirm",
             "gpa", "major", "home_institution", "enrollment_year",
