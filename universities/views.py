@@ -1,4 +1,7 @@
 from rest_framework import generics, permissions
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status as drf_status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 import django_filters
@@ -35,8 +38,9 @@ class UniversityFilter(django_filters.FilterSet):
 
 class UniversityListCreateView(generics.ListCreateAPIView):
     """
-    GET  /api/v1/universities/        — list all, paginated, filterable
-    POST /api/v1/universities/        — create (admin/coordinator only)
+    GET  /api/v1/universities/   — PUBLIC. No token needed.
+                                   Anyone can browse universities before registering.
+    POST /api/v1/universities/   — Admin/Coordinator only.
 
     Filter params: ?country=Germany&min_gpa=3.0&language=English
     Search params: ?search=Berlin
@@ -56,29 +60,32 @@ class UniversityListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            return [permissions.IsAuthenticated()]
+            # PUBLIC — no login required to browse universities
+            return [permissions.AllowAny()]
         return [IsAdminOrCoordinator()]
 
 
 class UniversityDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    GET    /api/v1/universities/<id>/   — full detail with nested programs
-    PATCH  /api/v1/universities/<id>/   — update (admin/coordinator only)
-    DELETE /api/v1/universities/<id>/   — delete (admin/coordinator only)
+    GET    /api/v1/universities/<id>/   — PUBLIC. Full detail with nested programs.
+                                          Anyone can view a university's full profile.
+    PATCH  /api/v1/universities/<id>/   — Admin/Coordinator only.
+    DELETE /api/v1/universities/<id>/   — Admin/Coordinator only.
     """
     queryset = University.objects.prefetch_related("programs").all()
     serializer_class = UniversitySerializer
 
     def get_permissions(self):
         if self.request.method == "GET":
-            return [permissions.IsAuthenticated()]
+            # PUBLIC — no login required to view university details and programs
+            return [permissions.AllowAny()]
         return [IsAdminOrCoordinator()]
 
 
 class ProgramListCreateView(generics.ListCreateAPIView):
     """
-    GET  /api/v1/universities/<university_id>/programs/
-    POST /api/v1/universities/<university_id>/programs/
+    GET  /api/v1/universities/<university_id>/programs/  — PUBLIC.
+    POST /api/v1/universities/<university_id>/programs/  — Admin/Coordinator only.
     """
     serializer_class = ProgramSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -90,7 +97,8 @@ class ProgramListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            return [permissions.IsAuthenticated()]
+            # PUBLIC — anyone can browse what programs a university offers
+            return [permissions.AllowAny()]
         return [IsAdminOrCoordinator()]
 
     def perform_create(self, serializer):
@@ -100,14 +108,15 @@ class ProgramListCreateView(generics.ListCreateAPIView):
 
 class ProgramDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    GET    /api/v1/programs/<id>/
-    PATCH  /api/v1/programs/<id>/
-    DELETE /api/v1/programs/<id>/
+    GET    /api/v1/programs/<id>/   — PUBLIC. Full program detail.
+    PATCH  /api/v1/programs/<id>/   — Admin/Coordinator only.
+    DELETE /api/v1/programs/<id>/   — Admin/Coordinator only.
     """
     queryset = Program.objects.select_related("university").all()
     serializer_class = ProgramSerializer
 
     def get_permissions(self):
         if self.request.method == "GET":
-            return [permissions.IsAuthenticated()]
+            # PUBLIC — anyone can view a specific program's details
+            return [permissions.AllowAny()]
         return [IsAdminOrCoordinator()]
