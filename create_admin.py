@@ -2,7 +2,7 @@ import os
 import django
 
 # Make sure this matches the exact folder name containing your settings.py file
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'GlobalScholar.settings') 
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'task_id.settings')
 django.setup()
 
 from django.contrib.auth import get_user_model
@@ -16,3 +16,5 @@ if not User.objects.filter(email=email).exists():
     print("🚀 SUPERUSER CREATED SUCCESSFULLY VIA SCRIPT!")
 else:
     print("✅ Superuser already exists.")
+    
+    
