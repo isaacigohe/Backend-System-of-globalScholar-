@@ -1,6 +1,8 @@
 import os
+import base64
+import hashlib
+import secrets
 import psycopg2
-from django.contrib.auth.hashers import make_password
 
 # 1. Fetch your database URL directly from Render's environment
 db_url = os.environ.get("DATABASE_URL")
@@ -11,8 +13,20 @@ if not db_url:
 
 # 2. Define your login credentials
 email = "isaac@gmail.com"
-raw_password = "Secure1234"
-hashed_password = make_password(raw_password)
+raw_password = "YourSecurePassword123!"
+
+# 3. Generate a proper Django-compatible PBKDF2 SHA256 password hash
+iterations = 870000  # Django 6.0 default iterations
+salt = secrets.token_hex(6)  # Generate a random unique text salt
+hash_bytes = hashlib.pbkdf2_hmac(
+    'sha256', 
+    raw_password.encode('utf-8'), 
+    salt.encode('utf-8'), 
+    iterations
+)
+encoded_hash = base64.b64encode(hash_bytes).decode('ascii').strip()
+# Final string structure matching Django's layout: pbkdf2_sha256$iterations$salt$hash
+hashed_password = f"pbkdf2_sha256${iterations}${salt}${encoded_hash}"
 
 try:
     # Connect directly to PostgreSQL
@@ -31,7 +45,7 @@ try:
         """
         cursor.execute(insert_query, (hashed_password, email))
         conn.commit()
-        print("🚀 SUPERUSER CREATED SUCCESSFULLY VIA DIRECT SQL!")
+        print("🚀 SUPERUSER CREATED SUCCESSFULLY VIA PURE PYTHON SQL INJECTION!")
     else:
         print("✅ Superuser already exists in the database.")
 
