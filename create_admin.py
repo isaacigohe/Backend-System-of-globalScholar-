@@ -12,8 +12,8 @@ if not db_url:
     exit(1)
 
 # 2. Define your login credentials
-email = "isaac@gmail.com"
-raw_password = "YourSecurePassword123!"
+email = "Ema@gmail.com"
+raw_password = "Kisiwani@1234"
 
 # 3. Generate a proper Django-compatible PBKDF2 SHA256 password hash
 iterations = 870000  # Django 6.0 default iterations
