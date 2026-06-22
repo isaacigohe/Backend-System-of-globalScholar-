@@ -22,6 +22,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'users',  # Replace with your actual app name
+    'rest_framework',  # If you're using Django REST Framework
+    'applications',  # Add your applications app if you have one
+    'universities',  # Add your universities app if you have one
+    'management',  # Add your management app if you have one
     # Add your local apps here if you have custom user models (e.g., 'users')
 ]
 
@@ -110,3 +115,5 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+AUTH_USER_MODEL = 'users.User' #  ADD THIS: Change 'User' if your custom model class has a different name (like CustomUser)
