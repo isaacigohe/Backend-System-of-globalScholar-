@@ -56,9 +56,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core_backend.wsgi.application'
 
 # 3. Database Configuration (Uses DATABASE_URL on Render, fallbacks to explicit keys locally)
-if config("DATABASE_URL", default=""):
+# 3. Database Configuration (Uses DATABASE_URL on Render, fallbacks to explicit keys locally)
+DATABASE_URL = config("DATABASE_URL", default="")
+
+if DATABASE_URL:
     DATABASES = {
-        'default': dj_database_url.parse("DATABASE_URL")
+        'default': dj_database_url.parse(DATABASE_URL) # ✅ Correct: Passing the actual variable, no quotes!
     }
 else:
     DATABASES = {
