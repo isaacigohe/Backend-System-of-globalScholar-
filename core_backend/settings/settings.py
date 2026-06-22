@@ -58,7 +58,7 @@ WSGI_APPLICATION = 'core_backend.wsgi.application'
 # 3. Database Configuration (Uses DATABASE_URL on Render, fallbacks to explicit keys locally)
 if config("DATABASE_URL", default=""):
     DATABASES = {
-        'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
+        'default': dj_database_url.parse("DATABASE_URL")
     }
 else:
     DATABASES = {
