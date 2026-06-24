@@ -7,16 +7,17 @@ import dj_database_url
 
 DEBUG = False
 
+# Accept Render's hostname if provided and common onrender subdomains
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
+DEFAULT_HOSTS = [RENDER_EXTERNAL_HOSTNAME, '.onrender.com', 'backend-system-of-globalscholar.onrender.com']
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='backend-system-of-globalscholar.onrender.com',
+    default=','.join([host for host in DEFAULT_HOSTS if host]),
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
 # ── Database ─────────────────────────────────────────────────────────────────
-# Reads DATABASE_URL from Render environment variables
-# Fixes older postgres:// URLs to postgresql:// which Django 4+ requires
-
+# Read DATABASE_URL and require SSL for managed providers (Render, Heroku, etc.)
 raw_db_url = config('DATABASE_URL', default='')
 
 if raw_db_url.startswith('postgres://'):
@@ -26,7 +27,8 @@ if raw_db_url.startswith('postgres://'):
 DATABASES = {
     'default': dj_database_url.config(
         default=raw_db_url,
-        conn_max_age=0,
+        conn_max_age=600,
+        ssl_require=True,
     )
 }
 
@@ -63,6 +65,22 @@ X_FRAME_OPTIONS             = 'DENY'
 # Required for Django admin to work on HTTPS (Render uses HTTPS)
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='https://backend-system-of-globalscholar.onrender.com',
+    default=','.join([f'https://{RENDER_EXTERNAL_HOSTNAME}' if RENDER_EXTERNAL_HOSTNAME else '', 'https://backend-system-of-globalscholar.onrender.com']).strip(','),
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Logging: stream Django errors to stdout so the host (Render) captures stack traces
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'root': {'handlers': ['console'], 'level': 'INFO'},
+    'loggers': {
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': True},
+        'django.security': {'handlers': ['console'], 'level': 'ERROR', 'propagate': True},
+    },
+}
