@@ -17,19 +17,9 @@ ALLOWED_HOSTS = config(
 )
 
 # ── Database ─────────────────────────────────────────────────────────────────
-# Read DATABASE_URL and require SSL for managed providers (Render, Heroku, etc.)
-raw_db_url = config('DATABASE_URL', default='')
-
-if raw_db_url.startswith('postgres://'):
-    raw_db_url = raw_db_url.replace('postgres://', 'postgresql://', 1)
-    os.environ['DATABASE_URL'] = raw_db_url
-
+# Read DATABASE_URL from environment variables
 DATABASES = {
-    'default': dj_database_url.config(
-        default=raw_db_url,
-        conn_max_age=600,
-        ssl_require=True,
-    )
+    'default': dj_database_url.config(default=config('DATABASE_URL'))
 }
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
