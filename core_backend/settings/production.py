@@ -7,9 +7,15 @@ import dj_database_url
 
 DEBUG = False
 
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
+DEFAULT_HOSTS = [
+    RENDER_EXTERNAL_HOSTNAME,
+    '.onrender.com',
+    'backend-system-of-globalscholar.onrender.com',
+]
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='backend-system-of-globalscholar.onrender.com',
+    default=','.join([host for host in DEFAULT_HOSTS if host]),
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
@@ -64,6 +70,11 @@ X_FRAME_OPTIONS             = 'DENY'
 # Required for Django admin to work on HTTPS (Render uses HTTPS)
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='https://backend-system-of-globalscholar.onrender.com',
+    default=','.join([
+        f'https://{RENDER_EXTERNAL_HOSTNAME}' if RENDER_EXTERNAL_HOSTNAME else '',
+        'https://backend-system-of-globalscholar.onrender.com',
+    ]).strip(','),
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
