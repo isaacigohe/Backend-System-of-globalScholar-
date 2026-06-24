@@ -50,8 +50,6 @@ CORS_ALLOW_CREDENTIALS = True
 # ── Static Files ──────────────────────────────────────────────────────────────
 # WhiteNoise serves Django admin CSS/JS in production without a separate server
 
-MIDDLEWARE += ['whitenoise.middleware.WhiteNoiseMiddleware']
-
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
