@@ -62,23 +62,11 @@ WSGI_APPLICATION = 'core_backend.wsgi.application'
 
 # 3. Database Configuration (Uses DATABASE_URL on Render, fallbacks to explicit keys locally)
 # 3. Database Configuration (Uses DATABASE_URL on Render, fallbacks to explicit keys locally)
-DATABASE_URL = config("DATABASE_URL", default="")
 
-if DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL) # ✅ Correct: Passing the actual variable, no quotes!
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": config("DB_NAME", default="my_db_n2g1"),
-            "USER": config("DB_USER", default="postgres"),
-            "PASSWORD": config("DB_PASSWORD", default=""),
-            "HOST": config("DB_HOST", default="localhost"),
-            "PORT": config("DB_PORT", default="5432"),
-        }
-    }
+
+DATABASES = {
+    'default': dj_database_url.config(default=config('DATABASE_URL'))
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
