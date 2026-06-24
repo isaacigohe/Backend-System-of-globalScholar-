@@ -4,12 +4,8 @@ from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY =  config('SECRET_KEY', default='insecure-development-secret')
-<<<<<<< HEAD
+SECRET_KEY = config('SECRET_KEY', default='insecure-development-secret')
 DEBUG = config('DEBUG', default=True, cast=bool)
-=======
-DEBUG = True 
->>>>>>> 14e75cd210a551f46f2a9555e9eab4daad776004
 
 # Parse a comma-separated string from environment variables, fallback to local defaults
 ALLOWED_HOSTS = [
