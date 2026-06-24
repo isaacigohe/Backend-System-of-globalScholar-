@@ -26,7 +26,7 @@ if raw_db_url.startswith('postgres://'):
 DATABASES = {
     'default': dj_database_url.config(
         default=raw_db_url,
-        conn_max_age=600,
+        conn_max_age=0,
     )
 }
 
