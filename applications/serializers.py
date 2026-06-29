@@ -187,28 +187,35 @@ class ApplicationSerializer(serializers.ModelSerializer):
                     "Only students can create applications."
                 )
 
-            if student.gpa is None:
-                raise serializers.ValidationError(
-                    {
-                        "student": (
-                            "Your profile does not have a GPA on record. "
-                            "Please update your profile before applying."
-                        )
-                    }
-                )
-
-            if destination_university is not None:
-                if student.gpa < destination_university.minimum_gpa:
+           # High school and independent learners bypass the GPA guardrail
+            # Their applications are flagged for manual admin review instead
+            if student.requires_gpa_check:
+                if student.gpa is None:
                     raise serializers.ValidationError(
                         {
-                            "gpa": (
-                                f"Your GPA ({student.gpa}) does not meet the minimum "
-                                f"required by {destination_university.name} "
-                                f"({destination_university.minimum_gpa}). "
-                                f"You need at least {destination_university.minimum_gpa} to apply."
+                            "student": (
+                                "Your profile does not have a GPA on record. "
+                                "Please update your profile before applying."
                             )
                         }
                     )
+
+                if destination_university is not None:
+                    if student.gpa < destination_university.minimum_gpa:
+                        raise serializers.ValidationError(
+                            {
+                                "gpa": (
+                                    f"Your GPA ({student.gpa}) does not meet the minimum "
+                                    f"required by {destination_university.name} "
+                                    f"({destination_university.minimum_gpa}). "
+                                    f"You need at least {destination_university.minimum_gpa} to apply."
+                                )
+                            }
+                        )
+            else:
+                # High school / independent student — no GPA check
+                # Admin will review their application manually
+                pass
 
         # ── Status transition validation ───────────────────────────────────
         new_status = attrs.get("status")

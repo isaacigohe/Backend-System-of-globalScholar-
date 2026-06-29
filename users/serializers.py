@@ -20,6 +20,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "id", "email", "first_name", "last_name", "role",
             "password", "password_confirm",
             "gpa", "major", "home_institution", "enrollment_year",
+            "student_type",
         ]
         read_only_fields = ["id"]
 
@@ -29,29 +30,45 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"password_confirm": "Passwords do not match."}
             )
-
         role = attrs.get("role", User.Role.STUDENT)
-
-        # ── Student-specific mandatory fields ──────────────────────────────
+            
+        
+    # ── Student-specific mandatory fields ──────────────────────────────
         if role == User.Role.STUDENT:
-            if not attrs.get("gpa"):
-                raise serializers.ValidationError(
-                    {"gpa": "GPA is required for Student accounts."}
-                )
-            if attrs["gpa"] < 0 or attrs["gpa"] > 4.0:
-                raise serializers.ValidationError(
-                    {"gpa": "GPA must be between 0.00 and 4.00."}
-                )
-            if not attrs.get("major"):
-                raise serializers.ValidationError(
-                    {"major": "Major is required for Student accounts."}
-                )
-            if not attrs.get("home_institution"):
-                raise serializers.ValidationError(
-                    {"home_institution": "Home institution is required for Student accounts."}
-                )
+            student_type = attrs.get("student_type", User.StudentType.UNDERGRADUATE)
+
+            # University students must provide GPA and major
+            university_types = [
+                User.StudentType.UNDERGRADUATE,
+                User.StudentType.POSTGRADUATE,
+            ]
+
+            if student_type in university_types:
+                if not attrs.get("gpa"):
+                    raise serializers.ValidationError(
+                        {"gpa": "GPA is required for undergraduate and postgraduate students."}
+                    )
+                if attrs.get("gpa") and (attrs["gpa"] < 0 or attrs["gpa"] > 4.0):
+                    raise serializers.ValidationError(
+                        {"gpa": "GPA must be between 0.00 and 4.00."}
+                    )
+                if not attrs.get("major"):
+                    raise serializers.ValidationError(
+                        {"major": "Major is required for undergraduate and postgraduate students."}
+                    )
+                if not attrs.get("home_institution"):
+                    raise serializers.ValidationError(
+                        {"home_institution": "Home institution is required for undergraduate and postgraduate students."}
+                    )
+            else:
+                # High school and independent learners — GPA and major are optional
+                # home_institution is still useful but not mandatory
+                if attrs.get("gpa") and (attrs["gpa"] < 0 or attrs["gpa"] > 4.0):
+                    raise serializers.ValidationError(
+                        {"gpa": "GPA must be between 0.00 and 4.00 if provided."}
+                    )
+
         else:
-            # Non-student roles must not supply student-only fields.
             if attrs.get("gpa") is not None:
                 raise serializers.ValidationError(
                     {"gpa": "GPA is only applicable to Student accounts."}
@@ -99,7 +116,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "email", "first_name", "last_name", "full_name", "role",
-            "gpa", "major", "home_institution", "enrollment_year", "date_joined",
+            "gpa", "major", "home_institution", "enrollment_year", "student_type", "date_joined",
         ]
         read_only_fields = ["id", "email", "role", "date_joined", "full_name"]
 

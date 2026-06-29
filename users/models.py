@@ -46,6 +46,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         STUDENT = "STUDENT", "Student"
         HOME_ADMIN = "HOME_ADMIN", "Home Admin"
         HOST_COORD = "HOST_COORD", "Host Coordinator"
+        
+    class StudentType(models.TextChoices):
+        UNDERGRADUATE = "UNDERGRADUATE", "Undergraduate Student"
+        POSTGRADUATE  = "POSTGRADUATE",  "Postgraduate Student"
+        HIGH_SCHOOL   = "HIGH_SCHOOL",   "High School Student"
+        INDEPENDENT   = "INDEPENDENT",   "Independent Learner"
 
     # ── Identity ──────────────────────────────────────────────────────────────
     email = models.EmailField(unique=True)
@@ -84,6 +90,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         help_text="Academic year the student enrolled (e.g. 2022).",
     )
+    student_type = models.CharField(
+        max_length=20,
+        choices=StudentType.choices,
+        null=True,
+        blank=True,
+        default=StudentType.UNDERGRADUATE,
+        help_text="Type of student — determines which eligibility rules apply.",
+    )
 
     # ── Account state ─────────────────────────────────────────────────────────
     is_active = models.BooleanField(default=True)
@@ -119,3 +133,19 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_host_coordinator(self):
         return self.role == self.Role.HOST_COORD
+    
+    @property
+    def is_high_school_student(self):
+        return self.student_type == self.StudentType.HIGH_SCHOOL
+
+    @property
+    def is_independent_learner(self):
+        return self.student_type == self.StudentType.INDEPENDENT
+
+    @property
+    def requires_gpa_check(self):
+        # Only undergraduate and postgraduate students go through the GPA guardrail
+        return self.student_type in [
+            self.StudentType.UNDERGRADUATE,
+            self.StudentType.POSTGRADUATE,
+        ]
