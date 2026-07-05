@@ -31,11 +31,12 @@ class ProgramSerializer(serializers.ModelSerializer):
 class UniversitySerializer(serializers.ModelSerializer):
     programs = ProgramSerializer(many=True, read_only=True)
     program_count = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = University
         fields = [
-            "id", "name", "country", "city", "website",
+            "id", "name", "country", "city", "website", "image", "image_url",
             "minimum_gpa", "primary_language",
             "language_test_required", "minimum_language_score",
             "max_international_students",
@@ -50,6 +51,15 @@ class UniversitySerializer(serializers.ModelSerializer):
 
     def get_program_count(self, obj):
         return obj.programs.count()
+    
+    def get_image_url(self, obj):
+        """Return the full URL for the university image"""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
 
     def validate_minimum_gpa(self, value):
         if value < 0 or value > 4.0:
@@ -72,14 +82,24 @@ class UniversityListSerializer(serializers.ModelSerializer):
     to keep list responses fast and small.
     """
     program_count = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = University
         fields = [
-            "id", "name", "country", "city",
+            "id", "name", "country", "city", "image_url",
             "minimum_gpa", "primary_language",
             "travel_advisory_level", "program_count",
         ]
 
     def get_program_count(self, obj):
         return obj.programs.count()
+    
+    def get_image_url(self, obj):
+        """Return the full URL for the university image"""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None

@@ -1,36 +1,28 @@
-# users/admin.py
-# Registers the custom User model in Django admin panel.
-
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.admin import UserAdmin
 from .models import User
 
-
 @admin.register(User)
-class UserAdmin(BaseUserAdmin):
-    # Columns shown in the user list table
-    list_display  = ('email', 'first_name', 'last_name', 'role', 'is_active', 'date_joined')
-    list_filter   = ('role', 'is_active', 'is_staff')
+class CustomUserAdmin(UserAdmin):
+    list_display = ('email', 'first_name', 'last_name', 'role', 'host_university', 'is_active')
+    list_filter = ('role', 'is_active', 'host_university')
     search_fields = ('email', 'first_name', 'last_name')
-    ordering      = ('-date_joined',)
-
-    # Fields shown when viewing/editing a single user
-    fieldsets = (
-        ('Identity',  {'fields': ('email', 'password')}),
-        ('Personal',  {'fields': ('first_name', 'last_name', 'role')}),
-        ('Student Info', {'fields': ('gpa', 'major', 'home_institution', 'enrollment_year')}),
-        ('Permissions',  {'fields': ('is_active', 'is_staff', 'is_superuser')}),
-        ('Dates',     {'fields': ('date_joined', 'last_login')}),
-    )
-    readonly_fields = ('date_joined', 'last_login')
-
-    # Fields shown when creating a new user from admin
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('email', 'first_name', 'last_name', 'role', 'password1', 'password2'),
+    ordering = ('email',)  # Changed from 'username' to 'email'
+    
+    fieldsets = UserAdmin.fieldsets + (
+        ('Role & University', {
+            'fields': ('role', 'host_university', 'student_type'),
+        }),
+        ('Student Info', {
+            'fields': ('gpa', 'major', 'home_institution', 'enrollment_year'),
         }),
     )
-
-    # Django expects username field — we use email instead
-    USERNAME_FIELD = 'email'
+    
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ('Role & University', {
+            'fields': ('role', 'host_university', 'student_type'),
+        }),
+        ('Student Info', {
+            'fields': ('gpa', 'major', 'home_institution', 'enrollment_year'),
+        }),
+    )

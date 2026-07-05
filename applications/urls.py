@@ -5,6 +5,8 @@ from .views import (
     ApplicationDetailView,
     SubmitApplicationView,
     AdvanceApplicationView,
+    ApproveApplicationView,
+    RejectApplicationView,
     DocumentChecklistListView,
     DocumentUploadView,
     DocumentReviewView,
@@ -18,6 +20,9 @@ urlpatterns = [
     path("applications/<int:pk>/", ApplicationDetailView.as_view(), name="application-detail"),
     path("applications/<int:pk>/submit/", SubmitApplicationView.as_view(), name="application-submit"),
     path("applications/<int:pk>/advance/", AdvanceApplicationView.as_view(), name="application-advance"),
+    # Approve/Reject (Host Coordinator actions)
+    path("applications/<int:pk>/approve/", ApproveApplicationView.as_view(), name="application-approve"),
+    path("applications/<int:pk>/reject/", RejectApplicationView.as_view(), name="application-reject"),
     # Documents
     path(
         "applications/<int:application_id>/documents/",

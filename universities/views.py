@@ -58,6 +58,12 @@ class UniversityListCreateView(generics.ListCreateAPIView):
             return UniversityListSerializer
         return UniversitySerializer
 
+    def get_serializer_context(self):
+        """Add request to context for generating absolute image URLs"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
     def get_permissions(self):
         if self.request.method == "GET":
             # PUBLIC — no login required to browse universities
@@ -74,6 +80,12 @@ class UniversityDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     queryset = University.objects.prefetch_related("programs").all()
     serializer_class = UniversitySerializer
+
+    def get_serializer_context(self):
+        """Add request to context for generating absolute image URLs"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
     def get_permissions(self):
         if self.request.method == "GET":

@@ -63,6 +63,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=Role.STUDENT,
     )
 
+    # ── Host Coordinator specific ────────────────────────────────────────────
+    host_university = models.ForeignKey(
+        'universities.University',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='host_coordinators',
+        help_text="The university this coordinator manages (only for HOST_COORD role)."
+    )
+
     # ── Student-specific fields ───────────────────────────────────────────────
     # These are nullable so HOME_ADMIN and HOST_COORD rows stay clean.
     # Business logic in serializers enforces them for STUDENT role.

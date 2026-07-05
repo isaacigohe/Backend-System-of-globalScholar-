@@ -32,6 +32,14 @@ class University(models.Model):
     country = models.CharField(max_length=100)
     city = models.CharField(max_length=100, blank=True, default="")
     website = models.URLField(blank=True, default="")
+    
+    # ── Image ──────────────────────────────────────────────────────────────────
+    image = models.ImageField(
+        upload_to='universities/',
+        null=True,
+        blank=True,
+        help_text="University logo or campus image"
+    )
 
     # ── Academic requirements ──────────────────────────────────────────────────
     minimum_gpa = models.DecimalField(

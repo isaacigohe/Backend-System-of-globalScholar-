@@ -26,7 +26,8 @@ INSTALLED_APPS = [
     'rest_framework',  # If you're using Django REST Framework
     'applications',  # Add your applications app if you have one
     'universities',  # Add your universities app if you have one
-    'management',  # Add your management app if you have one
+    'management',
+    'notifications',  # Add your notifications app if you have one
     # Add your local apps here if you have custom user models (e.g., 'users')
 ]
 

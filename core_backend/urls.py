@@ -23,4 +23,5 @@ urlpatterns = [
     path(API_PREFIX, include('users.urls')),
     path(API_PREFIX, include('universities.urls')),
     path(API_PREFIX, include('applications.urls')),
+    path(API_PREFIX, include('notifications.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
