@@ -157,13 +157,6 @@ class ApplicationSerializer(serializers.ModelSerializer):
     document_checklist = DocumentChecklistSerializer(many=True, read_only=True)
     reviewed_by_name = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
-    
-    documents = serializers.ListField(
-        child=serializers.FileField(),
-        write_only=True,
-        required=False,
-        help_text="Upload documents during application creation"
-    )
 
     class Meta:
         model = Application
@@ -177,7 +170,6 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "submitted_at", "reviewed_at", "decision_at",
             "rejection_reason", "admin_notes",
             "document_checklist",
-            "documents",
             "created_at", "updated_at",
         ]
         read_only_fields = [
@@ -279,37 +271,9 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get("request")
-        documents = validated_data.pop("documents", [])
-        
         validated_data["student"] = request.user
         validated_data["gpa_at_submission"] = request.user.gpa
-        application = super().create(validated_data)
-        
-        if documents:
-            document_types = [
-                DocumentChecklist.DocumentType.PASSPORT_SCAN,
-                DocumentChecklist.DocumentType.ACADEMIC_TRANSCRIPT,
-                DocumentChecklist.DocumentType.LANGUAGE_TEST_RESULT,
-                DocumentChecklist.DocumentType.PERSONAL_STATEMENT,
-                DocumentChecklist.DocumentType.REFERENCE_LETTER,
-                DocumentChecklist.DocumentType.BANK_STATEMENT,
-                DocumentChecklist.DocumentType.VISA_COPY,
-                DocumentChecklist.DocumentType.MEDICAL_CLEARANCE,
-                DocumentChecklist.DocumentType.INSURANCE_PROOF,
-                DocumentChecklist.DocumentType.HOUSING_CONFIRMATION,
-            ]
-            
-            for i, doc_file in enumerate(documents):
-                if i < len(document_types):
-                    DocumentChecklist.objects.create(
-                        application=application,
-                        document_type=document_types[i],
-                        file_attachment=doc_file,
-                        uploaded_at=timezone.now(),
-                        verification_status=DocumentChecklist.VerificationStatus.AWAITING_REVIEW
-                    )
-        
-        return application
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         new_status = validated_data.get("status")

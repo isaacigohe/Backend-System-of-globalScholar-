@@ -88,6 +88,11 @@ class ApplicationListCreateView(generics.ListCreateAPIView):
             return ApplicationListSerializer
         return ApplicationSerializer
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
     def get_permissions(self):
         if self.request.method == "POST":
             return [IsStudent()]
@@ -142,6 +147,11 @@ class ApplicationDetailView(generics.RetrieveUpdateAPIView):
             return Application.objects.none()
 
         return Application.objects.none()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 
 class SubmitApplicationView(APIView):
@@ -226,37 +236,106 @@ class AdvanceApplicationView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = ApplicationSerializer(
-            application,
-            data=request.data,
-            partial=True,
-            context={"request": request},
-        )
+        # Check if the status transition is valid
+        new_status = request.data.get("status")
+        if not new_status:
+            return Response(
+                {"detail": "Status is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        if serializer.is_valid():
-            serializer.save()
-            
-            # ── Send notification to student about status change ────────────
-            new_status = request.data.get("status")
-            if new_status:
-                status_messages = {
-                    "UNDER_REVIEW": "Your application is now under review.",
-                    "COMPLIANCE_PHASE": "Your application has moved to the compliance phase. Please upload the required documents.",
-                }
-                message = status_messages.get(new_status, f"Your application status has been updated to {new_status}.")
+        # Validate transition
+        S = Application.Status
+        valid_transitions = {
+            S.SUBMITTED: [S.UNDER_REVIEW, S.REJECTED],
+            S.UNDER_REVIEW: [S.COMPLIANCE_PHASE, S.REJECTED],
+            S.COMPLIANCE_PHASE: [S.APPROVED, S.REJECTED],
+        }
+        
+        current_status = application.status
+        allowed_next = valid_transitions.get(current_status, [])
+        
+        if new_status not in allowed_next:
+            return Response(
+                {
+                    "detail": (
+                        f"Invalid status transition: '{current_status}' → '{new_status}'. "
+                        f"Allowed next statuses: {allowed_next}"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Update the status
+        application.status = new_status
+        
+        # Set timestamps
+        now = timezone.now()
+        if new_status == S.UNDER_REVIEW:
+            application.reviewed_at = now
+            application.reviewed_by = user
+        elif new_status == S.COMPLIANCE_PHASE:
+            pass  # No timestamp needed for compliance phase
+        elif new_status in [S.APPROVED, S.REJECTED]:
+            application.decision_at = now
+        
+        application.save()
+
+        # ── CREATE DOCUMENTS WHEN ENTERING COMPLIANCE_PHASE ──────────────────
+        if new_status == S.COMPLIANCE_PHASE:
+            # Check if documents already exist
+            existing_docs = DocumentChecklist.objects.filter(application=application)
+            if not existing_docs.exists():
+                # Create default document checklist items
+                document_types = [
+                    DocumentChecklist.DocumentType.PASSPORT_SCAN,
+                    DocumentChecklist.DocumentType.ACADEMIC_TRANSCRIPT,
+                    DocumentChecklist.DocumentType.LANGUAGE_TEST_RESULT,
+                    DocumentChecklist.DocumentType.PERSONAL_STATEMENT,
+                    DocumentChecklist.DocumentType.REFERENCE_LETTER,
+                    DocumentChecklist.DocumentType.BANK_STATEMENT,
+                    DocumentChecklist.DocumentType.VISA_COPY,
+                    DocumentChecklist.DocumentType.MEDICAL_CLEARANCE,
+                    DocumentChecklist.DocumentType.INSURANCE_PROOF,
+                    DocumentChecklist.DocumentType.HOUSING_CONFIRMATION,
+                ]
                 
+                for doc_type in document_types:
+                    DocumentChecklist.objects.create(
+                        application=application,
+                        document_type=doc_type,
+                        is_mandatory=True,
+                        verification_status=DocumentChecklist.VerificationStatus.PENDING
+                    )
+                
+                # Send notification to student about compliance phase
                 create_notification(
                     user=application.student,
-                    notification_type=f"APPLICATION_{new_status}",
-                    title=f"📋 Application Status: {new_status.replace('_', ' ').title()}",
-                    message=message,
-                    link=f"/applications/{application.id}/",
+                    notification_type="COMPLIANCE_PHASE",
+                    title="📋 Compliance Phase Started",
+                    message=f"Your application to {application.destination_university.name} has entered the compliance phase. Please upload the required documents.",
+                    link=f"/applications/{application.id}/documents/",
                     related_application_id=application.id
                 )
-            
-            return Response(serializer.data, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # ── Send notification to student about status change ────────────────
+        status_messages = {
+            "UNDER_REVIEW": "Your application is now under review.",
+            "COMPLIANCE_PHASE": "Your application has moved to the compliance phase. Please upload the required documents.",
+        }
+        message = status_messages.get(new_status, f"Your application status has been updated to {new_status}.")
+        
+        create_notification(
+            user=application.student,
+            notification_type=f"APPLICATION_{new_status}",
+            title=f"📋 Application Status: {new_status.replace('_', ' ').title()}",
+            message=message,
+            link=f"/applications/{application.id}/",
+            related_application_id=application.id
+        )
+
+        serializer = ApplicationSerializer(application, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ApproveApplicationView(APIView):
