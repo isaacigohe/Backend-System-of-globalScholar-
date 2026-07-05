@@ -2,19 +2,21 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from users.serializers import UserPublicSerializer
-from universities.serializers import UniversityListSerializer
+from universities.serializers import UniversityListSerializer, UniversitySerializer, ProgramSerializer
 from .models import Application, DocumentChecklist, CreditTransferLog
 
 
 class DocumentChecklistSerializer(serializers.ModelSerializer):
     reviewed_by_name = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
+    document_type_display = serializers.SerializerMethodField()
 
     class Meta:
         model = DocumentChecklist
         fields = [
-            "id", "application", "document_type", "is_mandatory",
-            "file_attachment", "uploaded_at",
-            "verification_status", "admin_comment",
+            "id", "application", "document_type", "document_type_display", 
+            "is_mandatory", "file_attachment", "uploaded_at",
+            "verification_status", "status_display", "admin_comment",
             "reviewed_by", "reviewed_by_name", "reviewed_at",
             "created_at", "updated_at",
         ]
@@ -28,6 +30,12 @@ class DocumentChecklistSerializer(serializers.ModelSerializer):
         if obj.reviewed_by:
             return obj.reviewed_by.get_full_name()
         return None
+    
+    def get_status_display(self, obj):
+        return obj.get_verification_status_display()
+    
+    def get_document_type_display(self, obj):
+        return obj.get_document_type_display()
 
     def validate(self, attrs):
         verification_status = attrs.get(
@@ -39,7 +47,6 @@ class DocumentChecklistSerializer(serializers.ModelSerializer):
             self.instance.admin_comment if self.instance else "",
         )
 
-        # ── Mandatory comment guard ────────────────────────────────────────
         if verification_status == DocumentChecklist.VerificationStatus.ACTION_REQUIRED:
             if not admin_comment or not admin_comment.strip():
                 raise serializers.ValidationError(
@@ -51,22 +58,17 @@ class DocumentChecklistSerializer(serializers.ModelSerializer):
                         )
                     }
                 )
-        else:
-            pass  # All other statuses are valid without a comment.
-
         return attrs
 
     def update(self, instance, validated_data):
         request = self.context.get("request")
 
-        # Stamp reviewer info when an admin changes verification status.
         new_status = validated_data.get("verification_status")
         if new_status and new_status != instance.verification_status:
             if request and request.user.is_authenticated:
                 validated_data["reviewed_by"] = request.user
                 validated_data["reviewed_at"] = timezone.now()
 
-        # Stamp upload time when a file is attached.
         if "file_attachment" in validated_data and validated_data["file_attachment"]:
             validated_data["uploaded_at"] = timezone.now()
             validated_data["verification_status"] = (
@@ -78,6 +80,7 @@ class DocumentChecklistSerializer(serializers.ModelSerializer):
 
 class CreditTransferLogSerializer(serializers.ModelSerializer):
     submitted_by_name = serializers.SerializerMethodField()
+    transfer_status_display = serializers.SerializerMethodField()
 
     class Meta:
         model = CreditTransferLog
@@ -85,7 +88,8 @@ class CreditTransferLogSerializer(serializers.ModelSerializer):
             "id", "application",
             "host_course_code", "host_course_name", "host_credits", "host_grade",
             "home_equivalent_course_code", "home_equivalent_course_name",
-            "home_credits_awarded", "transfer_status", "denial_reason",
+            "home_credits_awarded", "transfer_status", "transfer_status_display", 
+            "denial_reason",
             "submitted_by", "submitted_by_name",
             "created_at", "updated_at",
         ]
@@ -95,6 +99,9 @@ class CreditTransferLogSerializer(serializers.ModelSerializer):
         if obj.submitted_by:
             return obj.submitted_by.get_full_name()
         return None
+    
+    def get_transfer_status_display(self, obj):
+        return obj.get_transfer_status_display()
 
     def validate(self, attrs):
         transfer_status = attrs.get(
@@ -122,8 +129,6 @@ class CreditTransferLogSerializer(serializers.ModelSerializer):
                         )
                     }
                 )
-        else:
-            pass  # Approved and Pending statuses do not require a reason.
 
         if attrs.get("host_credits") is not None and attrs["host_credits"] <= 0:
             raise serializers.ValidationError(
@@ -141,29 +146,42 @@ class CreditTransferLogSerializer(serializers.ModelSerializer):
 
 class ApplicationSerializer(serializers.ModelSerializer):
     """
-    Full detail serializer — used for retrieve, create, and status updates.
+    FULL detail serializer for application detail page.
+    Includes complete university details, programs, documents, and credits.
     """
     student_detail = UserPublicSerializer(source="student", read_only=True)
-    university_detail = UniversityListSerializer(
+    university_detail = UniversitySerializer(
         source="destination_university", read_only=True
     )
+    program_detail = ProgramSerializer(source="program", read_only=True)
     document_checklist = DocumentChecklistSerializer(many=True, read_only=True)
     reviewed_by_name = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
+    
+    documents = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=False,
+        help_text="Upload documents during application creation"
+    )
 
     class Meta:
         model = Application
         fields = [
             "id", "student", "student_detail",
             "destination_university", "university_detail",
-            "program", "reviewed_by", "reviewed_by_name",
-            "status", "gpa_at_submission",
+            "program", "program_detail",
+            "reviewed_by", "reviewed_by_name",
+            "status", "status_display",
+            "gpa_at_submission",
             "submitted_at", "reviewed_at", "decision_at",
             "rejection_reason", "admin_notes",
             "document_checklist",
+            "documents",
             "created_at", "updated_at",
         ]
         read_only_fields = [
-            "id", "student", "student_detail", "university_detail",
+            "id", "student", "student_detail", "university_detail", "program_detail",
             "reviewed_by", "reviewed_by_name",
             "gpa_at_submission", "submitted_at", "reviewed_at", "decision_at",
             "document_checklist", "created_at", "updated_at",
@@ -173,12 +191,14 @@ class ApplicationSerializer(serializers.ModelSerializer):
         if obj.reviewed_by:
             return obj.reviewed_by.get_full_name()
         return None
+    
+    def get_status_display(self, obj):
+        return obj.get_status_display()
 
     def validate(self, attrs):
         request = self.context.get("request")
         student = request.user if request else None
 
-        # ── Creation-time validation ───────────────────────────────────────
         if self.instance is None:
             destination_university = attrs.get("destination_university")
 
@@ -187,8 +207,6 @@ class ApplicationSerializer(serializers.ModelSerializer):
                     "Only students can create applications."
                 )
 
-           # High school and independent learners bypass the GPA guardrail
-            # Their applications are flagged for manual admin review instead
             if student.requires_gpa_check:
                 if student.gpa is None:
                     raise serializers.ValidationError(
@@ -212,12 +230,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
                                 )
                             }
                         )
-            else:
-                # High school / independent student — no GPA check
-                # Admin will review their application manually
-                pass
 
-        # ── Status transition validation ───────────────────────────────────
         new_status = attrs.get("status")
         if new_status and self.instance:
             current_status = self.instance.status
@@ -226,10 +239,6 @@ class ApplicationSerializer(serializers.ModelSerializer):
         return attrs
 
     def _validate_status_transition(self, current_status, new_status, attrs):
-        """
-        Enforces the linear pipeline using explicit if/else.
-        Any attempt to jump stages out of order is rejected.
-        """
         S = Application.Status
 
         valid_transitions = {
@@ -254,7 +263,6 @@ class ApplicationSerializer(serializers.ModelSerializer):
                 }
             )
 
-        # Rejection requires a reason.
         if new_status == S.REJECTED:
             rejection_reason = attrs.get(
                 "rejection_reason",
@@ -271,9 +279,37 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get("request")
+        documents = validated_data.pop("documents", [])
+        
         validated_data["student"] = request.user
         validated_data["gpa_at_submission"] = request.user.gpa
-        return super().create(validated_data)
+        application = super().create(validated_data)
+        
+        if documents:
+            document_types = [
+                DocumentChecklist.DocumentType.PASSPORT_SCAN,
+                DocumentChecklist.DocumentType.ACADEMIC_TRANSCRIPT,
+                DocumentChecklist.DocumentType.LANGUAGE_TEST_RESULT,
+                DocumentChecklist.DocumentType.PERSONAL_STATEMENT,
+                DocumentChecklist.DocumentType.REFERENCE_LETTER,
+                DocumentChecklist.DocumentType.BANK_STATEMENT,
+                DocumentChecklist.DocumentType.VISA_COPY,
+                DocumentChecklist.DocumentType.MEDICAL_CLEARANCE,
+                DocumentChecklist.DocumentType.INSURANCE_PROOF,
+                DocumentChecklist.DocumentType.HOUSING_CONFIRMATION,
+            ]
+            
+            for i, doc_file in enumerate(documents):
+                if i < len(document_types):
+                    DocumentChecklist.objects.create(
+                        application=application,
+                        document_type=document_types[i],
+                        file_attachment=doc_file,
+                        uploaded_at=timezone.now(),
+                        verification_status=DocumentChecklist.VerificationStatus.AWAITING_REVIEW
+                    )
+        
+        return application
 
     def update(self, instance, validated_data):
         new_status = validated_data.get("status")
@@ -300,18 +336,26 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
 class ApplicationListSerializer(serializers.ModelSerializer):
     """
-    Lightweight serializer for list views — no nested checklist.
+    LIGHTWEIGHT serializer for dashboard list views.
+    Includes enough info for the dashboard cards.
     """
     student_name = serializers.SerializerMethodField()
     university_name = serializers.SerializerMethodField()
     university_country = serializers.SerializerMethodField()
+    university_city = serializers.SerializerMethodField()
+    university_image = serializers.SerializerMethodField()
+    program_name = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
         fields = [
             "id", "student", "student_name",
-            "destination_university", "university_name", "university_country",
-            "status", "gpa_at_submission", "submitted_at", "created_at",
+            "destination_university", "university_name", 
+            "university_country", "university_city", "university_image",
+            "program", "program_name",
+            "status", "status_display",
+            "gpa_at_submission", "submitted_at", "created_at",
         ]
 
     def get_student_name(self, obj):
@@ -322,3 +366,22 @@ class ApplicationListSerializer(serializers.ModelSerializer):
 
     def get_university_country(self, obj):
         return obj.destination_university.country
+    
+    def get_university_city(self, obj):
+        return obj.destination_university.city or ""
+    
+    def get_university_image(self, obj):
+        request = self.context.get('request')
+        if obj.destination_university.image:
+            if request:
+                return request.build_absolute_uri(obj.destination_university.image.url)
+            return obj.destination_university.image.url
+        return None
+    
+    def get_program_name(self, obj):
+        if obj.program:
+            return obj.program.name
+        return None
+    
+    def get_status_display(self, obj):
+        return obj.get_status_display()

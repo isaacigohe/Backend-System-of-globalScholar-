@@ -3,7 +3,6 @@ from .models import University, Program
 
 
 class ProgramSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Program
         fields = [
@@ -29,14 +28,21 @@ class ProgramSerializer(serializers.ModelSerializer):
 
 
 class UniversitySerializer(serializers.ModelSerializer):
+    """
+    FULL detail serializer for university detail page.
+    Includes ALL programs and complete university information.
+    """
     programs = ProgramSerializer(many=True, read_only=True)
     program_count = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
+    display_name = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
 
     class Meta:
         model = University
         fields = [
-            "id", "name", "country", "city", "website", "image", "image_url",
+            "id", "name", "display_name", "country", "city", "location", "website",
+            "image", "image_url",
             "minimum_gpa", "primary_language",
             "language_test_required", "minimum_language_score",
             "max_international_students",
@@ -60,6 +66,16 @@ class UniversitySerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.image.url)
             return obj.image.url
         return None
+    
+    def get_display_name(self, obj):
+        """Return formatted display name"""
+        return obj.name
+    
+    def get_location(self, obj):
+        """Return formatted location (city, country)"""
+        if obj.city:
+            return f"{obj.city}, {obj.country}"
+        return obj.country
 
     def validate_minimum_gpa(self, value):
         if value < 0 or value > 4.0:
@@ -78,17 +94,19 @@ class UniversitySerializer(serializers.ModelSerializer):
 
 class UniversityListSerializer(serializers.ModelSerializer):
     """
-    Lightweight serializer for list views — omits nested programs
-    to keep list responses fast and small.
+    LIGHTWEIGHT serializer for landing page list views.
+    Fast and small - only essential fields for browsing.
     """
     program_count = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
+    display_name = serializers.SerializerMethodField()
 
     class Meta:
         model = University
         fields = [
-            "id", "name", "country", "city", "image_url",
-            "minimum_gpa", "primary_language",
+            "id", "name", "display_name", "country", "city", "location",
+            "image_url", "minimum_gpa", "primary_language",
             "travel_advisory_level", "program_count",
         ]
 
@@ -96,10 +114,17 @@ class UniversityListSerializer(serializers.ModelSerializer):
         return obj.programs.count()
     
     def get_image_url(self, obj):
-        """Return the full URL for the university image"""
         if obj.image:
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.image.url)
             return obj.image.url
         return None
+    
+    def get_location(self, obj):
+        if obj.city:
+            return f"{obj.city}, {obj.country}"
+        return obj.country
+    
+    def get_display_name(self, obj):
+        return obj.name

@@ -100,16 +100,8 @@ class Application(models.Model):
         verbose_name = "Application"
         verbose_name_plural = "Applications"
         ordering = ["-created_at"]
-        # A student cannot have more than one active application per program.
-        constraints = [
-            models.UniqueConstraint(
-                fields=["student", "destination_university", "program"],
-                condition=models.Q(
-                    status__in=["DRAFT", "SUBMITTED", "UNDER_REVIEW", "COMPLIANCE_PHASE"]
-                ),
-                name="unique_active_application_per_student_university_program",
-            )
-        ]
+        # CONSTRAINT REMOVED: Students can now apply to multiple programs/universities
+        # at the same time. No restriction on duplicate applications.
 
     def __str__(self):
         return (

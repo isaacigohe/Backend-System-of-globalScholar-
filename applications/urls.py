@@ -9,6 +9,7 @@ from .views import (
     RejectApplicationView,
     DocumentChecklistListView,
     DocumentUploadView,
+    StudentDocumentUploadView,  # Add this import
     DocumentReviewView,
     CreditTransferLogListCreateView,
     CreditTransferLogDetailView,
@@ -31,6 +32,12 @@ urlpatterns = [
     ),
     path("documents/<int:pk>/upload/", DocumentUploadView.as_view(), name="document-upload"),
     path("documents/<int:pk>/review/", DocumentReviewView.as_view(), name="document-review"),
+    # Student Document Upload (NEW)
+    path(
+        "applications/<int:application_id>/upload-documents/",
+        StudentDocumentUploadView.as_view(),
+        name="student-document-upload",
+    ),
     # Credits
     path(
         "applications/<int:application_id>/credits/",

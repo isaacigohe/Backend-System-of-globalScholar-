@@ -46,6 +46,7 @@ class ApplicationListCreateView(generics.ListCreateAPIView):
 
     POST /api/v1/applications/
       — Students only. Creates a DRAFT application.
+      — Checks if student has an existing draft and notifies them.
 
     Filter params: ?status=SUBMITTED&destination_country=Germany&min_gpa=3.2
     """
@@ -91,6 +92,26 @@ class ApplicationListCreateView(generics.ListCreateAPIView):
         if self.request.method == "POST":
             return [IsStudent()]
         return [permissions.IsAuthenticated()]
+
+    def create(self, request, *args, **kwargs):
+        # ── Check if student has a draft in progress ────────────────────────
+        existing_draft = Application.objects.filter(
+            student=request.user,
+            status=Application.Status.DRAFT
+        ).first()
+        
+        if existing_draft:
+            return Response(
+                {
+                    "detail": "You have a draft application already in progress.",
+                    "draft_id": existing_draft.id,
+                    "university": existing_draft.destination_university.name,
+                    "continue_link": f"/api/v1/applications/{existing_draft.id}/"
+                },
+                status=status.HTTP_409_CONFLICT
+            )
+        
+        return super().create(request, *args, **kwargs)
 
 
 class ApplicationDetailView(generics.RetrieveUpdateAPIView):
@@ -441,6 +462,91 @@ class DocumentUploadView(generics.UpdateAPIView):
         )
 
 
+class StudentDocumentUploadView(APIView):
+    """
+    POST /api/v1/applications/<application_id>/upload-documents/
+    Student uploads documents for their application.
+    One file per document type.
+    """
+    permission_classes = [IsStudent]
+
+    def post(self, request, application_id):
+        # Get the application
+        application = Application.objects.filter(
+            pk=application_id,
+            student=request.user
+        ).first()
+        
+        if application is None:
+            return Response(
+                {"detail": "Application not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get uploaded files
+        files = request.FILES
+        
+        if not files:
+            return Response(
+                {"detail": "Please upload at least one document."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Map document types to file fields
+        doc_type_map = {
+            'passport': DocumentChecklist.DocumentType.PASSPORT_SCAN,
+            'transcript': DocumentChecklist.DocumentType.ACADEMIC_TRANSCRIPT,
+            'language_test': DocumentChecklist.DocumentType.LANGUAGE_TEST_RESULT,
+            'personal_statement': DocumentChecklist.DocumentType.PERSONAL_STATEMENT,
+            'reference_letter': DocumentChecklist.DocumentType.REFERENCE_LETTER,
+            'bank_statement': DocumentChecklist.DocumentType.BANK_STATEMENT,
+            'visa': DocumentChecklist.DocumentType.VISA_COPY,
+            'medical': DocumentChecklist.DocumentType.MEDICAL_CLEARANCE,
+            'insurance': DocumentChecklist.DocumentType.INSURANCE_PROOF,
+            'housing': DocumentChecklist.DocumentType.HOUSING_CONFIRMATION,
+        }
+        
+        uploaded_docs = []
+        for field_name, file_obj in files.items():
+            doc_type = doc_type_map.get(field_name)
+            if doc_type:
+                # Check if this document already exists
+                doc_checklist, created = DocumentChecklist.objects.get_or_create(
+                    application=application,
+                    document_type=doc_type,
+                    defaults={
+                        'file_attachment': file_obj,
+                        'uploaded_at': timezone.now(),
+                        'verification_status': DocumentChecklist.VerificationStatus.AWAITING_REVIEW
+                    }
+                )
+                if not created:
+                    # Update existing document
+                    doc_checklist.file_attachment = file_obj
+                    doc_checklist.uploaded_at = timezone.now()
+                    doc_checklist.verification_status = DocumentChecklist.VerificationStatus.AWAITING_REVIEW
+                    doc_checklist.save()
+                
+                uploaded_docs.append(doc_checklist)
+        
+        # Send notification for upload confirmation
+        if uploaded_docs:
+            create_notification(
+                user=request.user,
+                notification_type="DOCUMENT_UPLOADED",
+                title="📄 Documents Uploaded",
+                message=f"Successfully uploaded {len(uploaded_docs)} document(s) for your application to {application.destination_university.name}.",
+                link=f"/applications/{application.id}/documents/",
+                related_application_id=application.id
+            )
+        
+        serializer = DocumentChecklistSerializer(uploaded_docs, many=True)
+        return Response({
+            "message": f"Successfully uploaded {len(uploaded_docs)} document(s).",
+            "documents": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
 class DocumentReviewView(generics.UpdateAPIView):
     """
     PATCH /api/v1/documents/<id>/review/
@@ -467,6 +573,43 @@ class DocumentReviewView(generics.UpdateAPIView):
             return DocumentChecklist.objects.none()
         
         return DocumentChecklist.objects.none()
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        
+        old_status = instance.verification_status
+        new_status = serializer.validated_data.get('verification_status')
+        
+        self.perform_update(serializer)
+        
+        # ── Send notification based on status change ────────────────────────
+        if new_status and new_status != old_status:
+            student = instance.application.student
+            
+            if new_status == DocumentChecklist.VerificationStatus.APPROVED:
+                create_notification(
+                    user=student,
+                    notification_type="DOCUMENT_APPROVED",
+                    title="✅ Document Approved",
+                    message=f"Your {instance.get_document_type_display()} for {instance.application.destination_university.name} has been approved.",
+                    link=f"/applications/{instance.application.id}/documents/",
+                    related_application_id=instance.application.id
+                )
+            elif new_status == DocumentChecklist.VerificationStatus.ACTION_REQUIRED:
+                admin_comment = serializer.validated_data.get('admin_comment', 'Please review and resubmit.')
+                create_notification(
+                    user=student,
+                    notification_type="DOCUMENT_ACTION_REQUIRED",
+                    title="⚠️ Document Action Required",
+                    message=f"Your {instance.get_document_type_display()} needs attention: {admin_comment}",
+                    link=f"/applications/{instance.application.id}/documents/",
+                    related_application_id=instance.application.id
+                )
+        
+        return Response(serializer.data)
 
 
 class CreditTransferLogListCreateView(generics.ListCreateAPIView):

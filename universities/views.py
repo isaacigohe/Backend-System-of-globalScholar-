@@ -2,6 +2,7 @@ from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status as drf_status
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 import django_filters
@@ -13,6 +14,13 @@ from .serializers import (
     UniversityListSerializer,
     ProgramSerializer,
 )
+
+
+# ── Custom Pagination ──────────────────────────────────────────────────────────
+class UniversityPagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 20
 
 
 class UniversityFilter(django_filters.FilterSet):
@@ -40,11 +48,14 @@ class UniversityListCreateView(generics.ListCreateAPIView):
     """
     GET  /api/v1/universities/   — PUBLIC. No token needed.
                                    Anyone can browse universities before registering.
+                                   Paginated: 5 universities per page.
+
     POST /api/v1/universities/   — Admin/Coordinator only.
 
     Filter params: ?country=Germany&min_gpa=3.0&language=English
     Search params: ?search=Berlin
     Order params:  ?ordering=minimum_gpa or ?ordering=-name
+    Page params:   ?page=2 (for pagination)
     """
     queryset = University.objects.prefetch_related("programs").all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -52,6 +63,7 @@ class UniversityListCreateView(generics.ListCreateAPIView):
     search_fields = ["name", "country", "city"]
     ordering_fields = ["name", "country", "minimum_gpa", "created_at"]
     ordering = ["country", "name"]
+    pagination_class = UniversityPagination  # ADD THIS
 
     def get_serializer_class(self):
         if self.request.method == "GET":
