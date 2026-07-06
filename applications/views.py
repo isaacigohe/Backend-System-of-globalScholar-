@@ -586,27 +586,39 @@ class StudentDocumentUploadView(APIView):
         }
         
         uploaded_docs = []
+        errors = []
+        
         for field_name, file_obj in files.items():
-            doc_type = doc_type_map.get(field_name)
+            doc_type = doc_type_map.get(field_name.lower())
             if doc_type:
-                # Check if this document already exists
-                doc_checklist, created = DocumentChecklist.objects.get_or_create(
-                    application=application,
-                    document_type=doc_type,
-                    defaults={
-                        'file_attachment': file_obj,
-                        'uploaded_at': timezone.now(),
-                        'verification_status': DocumentChecklist.VerificationStatus.AWAITING_REVIEW
-                    }
-                )
-                if not created:
-                    # Update existing document
-                    doc_checklist.file_attachment = file_obj
-                    doc_checklist.uploaded_at = timezone.now()
-                    doc_checklist.verification_status = DocumentChecklist.VerificationStatus.AWAITING_REVIEW
-                    doc_checklist.save()
-                
-                uploaded_docs.append(doc_checklist)
+                try:
+                    # Try to find existing document
+                    doc_checklist = DocumentChecklist.objects.filter(
+                        application=application,
+                        document_type=doc_type
+                    ).first()
+                    
+                    if doc_checklist:
+                        # Update existing document
+                        doc_checklist.file_attachment = file_obj
+                        doc_checklist.uploaded_at = timezone.now()
+                        doc_checklist.verification_status = DocumentChecklist.VerificationStatus.AWAITING_REVIEW
+                        doc_checklist.save()
+                    else:
+                        # Create new document
+                        doc_checklist = DocumentChecklist.objects.create(
+                            application=application,
+                            document_type=doc_type,
+                            file_attachment=file_obj,
+                            uploaded_at=timezone.now(),
+                            verification_status=DocumentChecklist.VerificationStatus.AWAITING_REVIEW
+                        )
+                    
+                    uploaded_docs.append(doc_checklist)
+                except Exception as e:
+                    errors.append(f"{field_name}: {str(e)}")
+            else:
+                errors.append(f"Unknown document type: {field_name}")
         
         # Send notification for upload confirmation
         if uploaded_docs:
@@ -620,10 +632,16 @@ class StudentDocumentUploadView(APIView):
             )
         
         serializer = DocumentChecklistSerializer(uploaded_docs, many=True)
-        return Response({
+        
+        response_data = {
             "message": f"Successfully uploaded {len(uploaded_docs)} document(s).",
             "documents": serializer.data
-        }, status=status.HTTP_200_OK)
+        }
+        
+        if errors:
+            response_data["errors"] = errors
+        
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class DocumentReviewView(generics.UpdateAPIView):
