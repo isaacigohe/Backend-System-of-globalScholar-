@@ -87,4 +87,4 @@ class GlobalScholarTokenSerializer(TokenObtainPairSerializer):
             'host_university': self.user.host_university_id if self.user.host_university else None,
         }
         
-        return data              
+        return data
