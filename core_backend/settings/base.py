@@ -7,13 +7,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = config('SECRET_KEY', default='insecure-development-secret')
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-# Parse a comma-separated string from environment variables, fallback to local defaults
 ALLOWED_HOSTS = [
     'backend-system-of-globalscholar.onrender.com', 
     'localhost', 
     '127.0.0.1'
 ]
 
+# ── CORS Configuration ──────────────────────────────────────────────────────
+# Allow your frontend to talk to this backend
 CORS_ALLOWED_ORIGINS = [
     'https://frontend-theta-bay-81.vercel.app',  # Your Vercel frontend
     'http://localhost:5173',  # Local development
@@ -22,6 +23,8 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
+# If you want to allow all origins temporarily (for testing only!):
+# CORS_ALLOW_ALL_ORIGINS = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -31,7 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Third-party
-    'corsheaders',
+    'corsheaders',  # <-- ADD THIS
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
@@ -41,12 +44,10 @@ INSTALLED_APPS = [
     'universities',
     'applications',
     'notifications',
-   
-    
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', 
+    'corsheaders.middleware.CorsMiddleware',  # <-- MUST BE FIRST
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -117,7 +118,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL =  'users.User'
+AUTH_USER_MODEL = 'users.User'
 
 # ── Django REST Framework ────────────────────────────────────────────────────
 REST_FRAMEWORK = {
@@ -128,7 +129,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 5,  # Changed from 10 to 5 per your requirement
+    'PAGE_SIZE': 5,
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
@@ -148,8 +149,8 @@ REST_FRAMEWORK = {
 
 # ── SimpleJWT ────────────────────────────────────────────────────────────────
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),   # Increased from 5 to 60 minutes
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),      # 7 days
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
