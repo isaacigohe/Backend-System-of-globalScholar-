@@ -73,7 +73,7 @@ class UserPublicSerializer(serializers.ModelSerializer):
         return obj.get_full_name()
 
 
-class GlobalScholarTokenSerializer(TokenObtainPairSerializer):
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         
