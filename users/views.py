@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import (
     UserRegistrationSerializer,
     UserProfileSerializer,
-    CustomTokenObtainPairSerializer,  # Changed from GlobalScholarTokenSerializer
+    GlobalScholarTokenSerializer,
 )
 from .throttles import LoginRateThrottle
 
@@ -31,7 +31,7 @@ class LoginView(TokenObtainPairView):
     Returns access + refresh JWT tokens.
     Throttled to 5 requests/min via LoginRateThrottle.
     """
-    serializer_class = CustomTokenObtainPairSerializer  # Changed to custom serializer
+    serializer_class = GlobalScholarTokenSerializer
     throttle_classes = [LoginRateThrottle]
     permission_classes = [permissions.AllowAny]
 
