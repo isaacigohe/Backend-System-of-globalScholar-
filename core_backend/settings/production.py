@@ -17,49 +17,41 @@ ALLOWED_HOSTS = config(
 )
 
 # ── Database ─────────────────────────────────────────────────────────────────
-# Read DATABASE_URL from environment variables
 DATABASES = {
     'default': dj_database_url.config(default=config('DATABASE_URL'))
 }
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-# Allows the React frontend to make API calls to this Django backend
+# CORS is already configured in base.py - only override if needed
+# DO NOT add corsheaders to INSTALLED_APPS again (it's already in base.py)
 
-INSTALLED_APPS += ['corsheaders']
-
-MIDDLEWARE = ['corsheaders.middleware.CorsMiddleware'] + MIDDLEWARE
-
+# If you need to override CORS_ALLOWED_ORIGINS for production:
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173',
+    default='https://frontend-theta-bay-81.vercel.app,http://localhost:5173',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
 CORS_ALLOW_CREDENTIALS = True
 
 # ── Static Files ──────────────────────────────────────────────────────────────
-# WhiteNoise serves Django admin CSS/JS in production without a separate server
-
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # ── Security ──────────────────────────────────────────────────────────────────
-
-SECURE_BROWSER_XSS_FILTER   = True
+SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS             = 'DENY'
+X_FRAME_OPTIONS = 'DENY'
 
-# Required for Django admin to work on HTTPS (Render uses HTTPS)
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default=','.join([f'https://{RENDER_EXTERNAL_HOSTNAME}' if RENDER_EXTERNAL_HOSTNAME else '', 'https://backend-system-of-globalscholar.onrender.com']).strip(','),
+    default='https://backend-system-of-globalscholar.onrender.com',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Logging: stream Django errors to stdout so the host (Render) captures stack traces
+# ── Logging ──────────────────────────────────────────────────────────────────
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
