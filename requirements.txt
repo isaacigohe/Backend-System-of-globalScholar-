@@ -5,11 +5,15 @@ darkdetect==0.8.0
 dj-database-url==3.1.2
 Django==6.0.5
 django-cors-headers==4.9.0
+django-filter==25.2
+djangorestframework==3.17.1
+djangorestframework_simplejwt==5.5.1
 dnspython==2.8.0
 gunicorn==26.0.0
 packaging==26.2
 pillow==12.2.0
 psycopg2-binary==2.9.12
+PyJWT==2.13.0
 pymongo==4.17.0
 python-decouple==3.8
 pytz==2026.2
