@@ -140,10 +140,10 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',
-        'user': '1000/day',
-        'login': '5/min',
-        'file_upload': '3/min',
+        'anon': '1000/day',      # INCREASED from 100
+        'user': '10000/day',     # INCREASED from 1000
+        'login': '10/min',       # INCREASED from 5
+        'file_upload': '10/min', # INCREASED from 3
     },
 }
 
