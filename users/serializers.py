@@ -12,7 +12,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         queryset=University.objects.all(),
         required=False,
         allow_null=True,
-        help_text="Required if role is HOST_COORD"
+        help_text="Optional - can be assigned by Admin later"
     )
 
     class Meta:
@@ -25,13 +25,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         role = attrs.get('role')
-        host_university = attrs.get('host_university')
         
-        # Host Coordinators MUST have a host_university
-        if role == User.Role.HOST_COORD and not host_university:
-            raise serializers.ValidationError({
-                'host_university': 'Host Coordinators must select a university.'
-            })
+        # ── REMOVED: Host Coordinators no longer required to select university ──
+        # Host Coordinators can register without a university.
+        # Admin will assign them via Django Admin later.
         
         # Students must have student-specific fields
         if role == User.Role.STUDENT:
