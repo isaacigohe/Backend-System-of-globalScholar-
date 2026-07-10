@@ -135,16 +135,17 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ),
-    'DEFAULT_THROTTLE_CLASSES': (
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle',
-    ),
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '1000/day',      # INCREASED from 100
-        'user': '10000/day',     # INCREASED from 1000
-        'login': '10/min',       # INCREASED from 5
-        'file_upload': '10/min', # INCREASED from 3
-    },
+   # 'DEFAULT_THROTTLE_CLASSES': (
+        #'rest_framework.throttling.AnonRateThrottle',
+        #'rest_framework.throttling.UserRateThrottle',
+    #),
+    
+    #'DEFAULT_THROTTLE_RATES': {
+        #'anon': '1000/day',      # INCREASED from 100
+        #'user': '10000/day',     # INCREASED from 1000
+        #'login': '10/min',       # INCREASED from 5
+        #'file_upload': '10/min', # INCREASED from 3
+    #},
 }
 
 # ── SimpleJWT ────────────────────────────────────────────────────────────────
