@@ -18,9 +18,15 @@ from .serializers import (
 
 # ── Custom Pagination ──────────────────────────────────────────────────────────
 class UniversityPagination(PageNumberPagination):
-    page_size = 5
+    page_size = 6  # 6 universities per page
     page_size_query_param = 'page_size'
     max_page_size = 20
+
+
+class ProgramPagination(PageNumberPagination):
+    page_size = 10  # 10 programs per page
+    page_size_query_param = 'page_size'
+    max_page_size = 50
 
 
 class UniversityFilter(django_filters.FilterSet):
@@ -48,7 +54,7 @@ class UniversityListCreateView(generics.ListCreateAPIView):
     """
     GET  /api/v1/universities/   — PUBLIC. No token needed.
                                    Anyone can browse universities before registering.
-                                   Paginated: 5 universities per page.
+                                   Paginated: 6 universities per page.
 
     POST /api/v1/universities/   — Admin/Coordinator only.
 
@@ -63,7 +69,7 @@ class UniversityListCreateView(generics.ListCreateAPIView):
     search_fields = ["name", "country", "city"]
     ordering_fields = ["name", "country", "minimum_gpa", "created_at"]
     ordering = ["country", "name"]
-    pagination_class = UniversityPagination  # ADD THIS
+    pagination_class = UniversityPagination
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -78,7 +84,6 @@ class UniversityListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            # PUBLIC — no login required to browse universities
             return [permissions.AllowAny()]
         return [IsAdminOrCoordinator()]
 
@@ -101,7 +106,6 @@ class UniversityDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            # PUBLIC — no login required to view university details and programs
             return [permissions.AllowAny()]
         return [IsAdminOrCoordinator()]
 
@@ -114,6 +118,7 @@ class ProgramListCreateView(generics.ListCreateAPIView):
     serializer_class = ProgramSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     ordering_fields = ["name", "degree_level", "application_deadline"]
+    pagination_class = ProgramPagination  # ADDED: pagination for programs
 
     def get_queryset(self):
         university_id = self.kwargs["university_id"]
@@ -121,7 +126,6 @@ class ProgramListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            # PUBLIC — anyone can browse what programs a university offers
             return [permissions.AllowAny()]
         return [IsAdminOrCoordinator()]
 
@@ -141,6 +145,5 @@ class ProgramDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            # PUBLIC — anyone can view a specific program's details
             return [permissions.AllowAny()]
         return [IsAdminOrCoordinator()]

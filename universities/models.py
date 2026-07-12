@@ -137,6 +137,12 @@ class Program(models.Model):
         blank=True,
         help_text="Next upcoming application deadline for this program.",
     )
+    # ── NEW: Description / Benefits field ──────────────────────────────────────
+    description = models.TextField(
+        blank=True,
+        default="",
+        help_text="Brief description of the program, benefits, and what students can expect."
+    )
 
     # ── Timestamps ────────────────────────────────────────────────────────────
     created_at = models.DateTimeField(auto_now_add=True)

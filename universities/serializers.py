@@ -8,7 +8,8 @@ class ProgramSerializer(serializers.ModelSerializer):
         fields = [
             "id", "university", "name", "degree_level", "duration_semesters",
             "tuition_per_semester_usd", "credits_transferable",
-            "application_deadline", "created_at", "updated_at",
+            "application_deadline", "description",  # ADDED description
+            "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
