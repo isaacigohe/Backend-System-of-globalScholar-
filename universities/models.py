@@ -137,10 +137,10 @@ class Program(models.Model):
         blank=True,
         help_text="Next upcoming application deadline for this program.",
     )
-    # ── NEW: Description / Benefits field ──────────────────────────────────────
+    # ── Description / Benefits field ──────────────────────────────────────────
     description = models.TextField(
         blank=True,
-        default="t=True",
+        default="",
         help_text="Brief description of the program, benefits, and what students can expect."
     )
 
