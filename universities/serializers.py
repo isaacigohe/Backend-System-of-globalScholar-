@@ -3,12 +3,13 @@ from .models import University, Program
 
 
 class ProgramSerializer(serializers.ModelSerializer):
-    # Explicitly define description as optional
+    # ── Make description optional ──────────────────────────────────────────
     description = serializers.CharField(
-        required=False, 
-        allow_blank=True, 
+        required=False,
+        allow_blank=True,
         allow_null=True,
-        default=''
+        default='',
+        help_text="Brief description of the program, benefits, and what students can expect."
     )
 
     class Meta:
@@ -34,6 +35,18 @@ class ProgramSerializer(serializers.ModelSerializer):
                 "Tuition cannot be a negative value."
             )
         return value
+
+    def create(self, validated_data):
+        # If description is not provided, set it to empty string
+        if 'description' not in validated_data or validated_data.get('description') is None:
+            validated_data['description'] = ''
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # If description is not provided in update, keep existing
+        if 'description' not in validated_data:
+            validated_data['description'] = instance.description
+        return super().update(instance, validated_data)
 
 
 class UniversitySerializer(serializers.ModelSerializer):
