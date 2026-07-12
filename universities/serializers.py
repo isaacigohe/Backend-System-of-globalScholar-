@@ -3,12 +3,20 @@ from .models import University, Program
 
 
 class ProgramSerializer(serializers.ModelSerializer):
+    # Explicitly define description as optional
+    description = serializers.CharField(
+        required=False, 
+        allow_blank=True, 
+        allow_null=True,
+        default=''
+    )
+
     class Meta:
         model = Program
         fields = [
             "id", "university", "name", "degree_level", "duration_semesters",
             "tuition_per_semester_usd", "credits_transferable",
-            "application_deadline", "description",  # ADDED description
+            "application_deadline", "description",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
