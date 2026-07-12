@@ -140,7 +140,7 @@ class Program(models.Model):
     # ── NEW: Description / Benefits field ──────────────────────────────────────
     description = models.TextField(
         blank=True,
-        default="",
+        default="t=True",
         help_text="Brief description of the program, benefits, and what students can expect."
     )
 
