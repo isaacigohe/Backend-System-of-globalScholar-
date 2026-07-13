@@ -13,6 +13,7 @@ class Notification(models.Model):
         APPLICATION_REJECTED = "APPLICATION_REJECTED", "Application Rejected"
         APPLICATION_SUBMITTED = "APPLICATION_SUBMITTED", "Application Submitted"
         APPLICATION_UNDER_REVIEW = "APPLICATION_UNDER_REVIEW", "Application Under Review"
+        APPLICATION_HOST_REVIEW = "APPLICATION_HOST_REVIEW", "Application Host Review"
         DOCUMENT_APPROVED = "DOCUMENT_APPROVED", "Document Approved"
         DOCUMENT_ACTION_REQUIRED = "DOCUMENT_ACTION_REQUIRED", "Document Action Required"
         CREDIT_TRANSFER_APPROVED = "CREDIT_TRANSFER_APPROVED", "Credit Transfer Approved"

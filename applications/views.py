@@ -190,13 +190,36 @@ class SubmitApplicationView(APIView):
         application.gpa_at_submission = request.user.gpa
         application.save(update_fields=["status", "submitted_at", "gpa_at_submission"])
 
+        # ── FIX: Create documents immediately on submission ──────────────────
+        document_types = [
+            DocumentChecklist.DocumentType.PASSPORT_SCAN,
+            DocumentChecklist.DocumentType.ACADEMIC_TRANSCRIPT,
+            DocumentChecklist.DocumentType.PERSONAL_STATEMENT,
+            DocumentChecklist.DocumentType.REFERENCE_LETTER,
+            DocumentChecklist.DocumentType.BANK_STATEMENT,
+            DocumentChecklist.DocumentType.MEDICAL_CLEARANCE,
+            DocumentChecklist.DocumentType.INSURANCE_PROOF,
+            DocumentChecklist.DocumentType.VISA_COPY,
+            DocumentChecklist.DocumentType.HOUSING_CONFIRMATION,
+        ]
+        
+        for doc_type in document_types:
+            DocumentChecklist.objects.get_or_create(
+                application=application,
+                document_type=doc_type,
+                defaults={
+                    'is_mandatory': True,
+                    'verification_status': DocumentChecklist.VerificationStatus.PENDING
+                }
+            )
+
         # ── Send notification to student ────────────────────────────────────
         create_notification(
             user=request.user,
             notification_type="APPLICATION_SUBMITTED",
             title="📤 Application Submitted",
-            message=f"Your application to {application.destination_university.name} has been submitted successfully. It is now under review.",
-            link=f"/applications/{application.id}/",
+            message=f"Your application to {application.destination_university.name} has been submitted. Please upload your documents in the Compliance Checklist Vault.",
+            link="/student",
             related_application_id=application.id
         )
 
@@ -248,8 +271,8 @@ class AdvanceApplicationView(APIView):
         S = Application.Status
         valid_transitions = {
             S.SUBMITTED: [S.UNDER_REVIEW, S.REJECTED],
-            S.UNDER_REVIEW: [S.COMPLIANCE_PHASE, S.REJECTED],
-            S.COMPLIANCE_PHASE: [S.APPROVED, S.REJECTED],
+            S.UNDER_REVIEW: [S.HOST_REVIEW, S.REJECTED],
+            S.HOST_REVIEW: [S.APPROVED, S.REJECTED],
         }
         
         current_status = application.status
@@ -274,54 +297,18 @@ class AdvanceApplicationView(APIView):
         if new_status == S.UNDER_REVIEW:
             application.reviewed_at = now
             application.reviewed_by = user
-        elif new_status == S.COMPLIANCE_PHASE:
-            pass  # No timestamp needed for compliance phase
+        elif new_status == S.HOST_REVIEW:
+            application.reviewed_at = now
+            application.reviewed_by = user
         elif new_status in [S.APPROVED, S.REJECTED]:
             application.decision_at = now
         
         application.save()
 
-        # ── CREATE DOCUMENTS WHEN ENTERING COMPLIANCE_PHASE ──────────────────
-        if new_status == S.COMPLIANCE_PHASE:
-            # Check if documents already exist
-            existing_docs = DocumentChecklist.objects.filter(application=application)
-            if not existing_docs.exists():
-                # Create default document checklist items
-                document_types = [
-                    DocumentChecklist.DocumentType.PASSPORT_SCAN,
-                    DocumentChecklist.DocumentType.ACADEMIC_TRANSCRIPT,
-                    DocumentChecklist.DocumentType.LANGUAGE_TEST_RESULT,
-                    DocumentChecklist.DocumentType.PERSONAL_STATEMENT,
-                    DocumentChecklist.DocumentType.REFERENCE_LETTER,
-                    DocumentChecklist.DocumentType.BANK_STATEMENT,
-                    DocumentChecklist.DocumentType.VISA_COPY,
-                    DocumentChecklist.DocumentType.MEDICAL_CLEARANCE,
-                    DocumentChecklist.DocumentType.INSURANCE_PROOF,
-                    DocumentChecklist.DocumentType.HOUSING_CONFIRMATION,
-                ]
-                
-                for doc_type in document_types:
-                    DocumentChecklist.objects.create(
-                        application=application,
-                        document_type=doc_type,
-                        is_mandatory=True,
-                        verification_status=DocumentChecklist.VerificationStatus.PENDING
-                    )
-                
-                # Send notification to student about compliance phase
-                create_notification(
-                    user=application.student,
-                    notification_type="COMPLIANCE_PHASE",
-                    title="📋 Compliance Phase Started",
-                    message=f"Your application to {application.destination_university.name} has entered the compliance phase. Please upload the required documents.",
-                    link=f"/applications/{application.id}/documents/",
-                    related_application_id=application.id
-                )
-
         # ── Send notification to student about status change ────────────────
         status_messages = {
-            "UNDER_REVIEW": "Your application is now under review.",
-            "COMPLIANCE_PHASE": "Your application has moved to the compliance phase. Please upload the required documents.",
+            "UNDER_REVIEW": "Your application is now under review by the Home Admin.",
+            "HOST_REVIEW": "Your application has been forwarded to the Host Coordinator for final review.",
         }
         message = status_messages.get(new_status, f"Your application status has been updated to {new_status}.")
         
@@ -330,7 +317,7 @@ class AdvanceApplicationView(APIView):
             notification_type=f"APPLICATION_{new_status}",
             title=f"📋 Application Status: {new_status.replace('_', ' ').title()}",
             message=message,
-            link=f"/applications/{application.id}/",
+            link="/student",
             related_application_id=application.id
         )
 
@@ -369,11 +356,11 @@ class ApproveApplicationView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Can only approve SUBMITTED or UNDER_REVIEW or COMPLIANCE_PHASE
+        # Can only approve applications in review stages
         if application.status not in [
             Application.Status.SUBMITTED,
             Application.Status.UNDER_REVIEW,
-            Application.Status.COMPLIANCE_PHASE
+            Application.Status.HOST_REVIEW
         ]:
             return Response(
                 {"detail": f"Application in '{application.status}' cannot be approved directly."},
@@ -390,8 +377,8 @@ class ApproveApplicationView(APIView):
             user=application.student,
             notification_type="APPLICATION_APPROVED",
             title="🎉 Application Approved!",
-            message=f"Your application to {application.destination_university.name} has been approved by {user.get_full_name()}. Congratulations! You can now proceed with enrollment.",
-            link=f"/applications/{application.id}/",
+            message=f"Your application to {application.destination_university.name} has been approved by {user.get_full_name()}. Congratulations!",
+            link="/student",
             related_application_id=application.id
         )
         
@@ -401,7 +388,7 @@ class ApproveApplicationView(APIView):
             notification_type="APPLICATION_APPROVED",
             title="Application Approved",
             message=f"You approved {application.student.get_full_name()}'s application to {application.destination_university.name}.",
-            link=f"/applications/{application.id}/",
+            link=f"/coordinator",
             related_application_id=application.id
         )
         
@@ -448,11 +435,11 @@ class RejectApplicationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Can only reject SUBMITTED, UNDER_REVIEW, or COMPLIANCE_PHASE
+        # Can only reject applications in review stages
         if application.status not in [
             Application.Status.SUBMITTED,
             Application.Status.UNDER_REVIEW,
-            Application.Status.COMPLIANCE_PHASE
+            Application.Status.HOST_REVIEW
         ]:
             return Response(
                 {"detail": f"Application in '{application.status}' cannot be rejected directly."},
@@ -471,7 +458,7 @@ class RejectApplicationView(APIView):
             notification_type="APPLICATION_REJECTED",
             title="❌ Application Rejected",
             message=f"Your application to {application.destination_university.name} has been rejected. Reason: {rejection_reason}",
-            link=f"/applications/{application.id}/",
+            link="/student",
             related_application_id=application.id
         )
         
@@ -481,7 +468,7 @@ class RejectApplicationView(APIView):
             notification_type="APPLICATION_REJECTED",
             title="Application Rejected",
             message=f"You rejected {application.student.get_full_name()}'s application to {application.destination_university.name}.",
-            link=f"/applications/{application.id}/",
+            link=f"/coordinator",
             related_application_id=application.id
         )
         
@@ -627,7 +614,7 @@ class StudentDocumentUploadView(APIView):
                 notification_type="DOCUMENT_UPLOADED",
                 title="📄 Documents Uploaded",
                 message=f"Successfully uploaded {len(uploaded_docs)} document(s) for your application to {application.destination_university.name}.",
-                link=f"/applications/{application.id}/documents/",
+                link="/student",
                 related_application_id=application.id
             )
         
@@ -692,7 +679,7 @@ class DocumentReviewView(generics.UpdateAPIView):
                     notification_type="DOCUMENT_APPROVED",
                     title="✅ Document Approved",
                     message=f"Your {instance.get_document_type_display()} for {instance.application.destination_university.name} has been approved.",
-                    link=f"/applications/{instance.application.id}/documents/",
+                    link="/student",
                     related_application_id=instance.application.id
                 )
             elif new_status == DocumentChecklist.VerificationStatus.ACTION_REQUIRED:
@@ -702,7 +689,7 @@ class DocumentReviewView(generics.UpdateAPIView):
                     notification_type="DOCUMENT_ACTION_REQUIRED",
                     title="⚠️ Document Action Required",
                     message=f"Your {instance.get_document_type_display()} needs attention: {admin_comment}",
-                    link=f"/applications/{instance.application.id}/documents/",
+                    link="/student",
                     related_application_id=instance.application.id
                 )
         

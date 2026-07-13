@@ -20,7 +20,7 @@ class Application(models.Model):
         DRAFT = "DRAFT", "Draft"
         SUBMITTED = "SUBMITTED", "Submitted"
         UNDER_REVIEW = "UNDER_REVIEW", "Under Review"
-        COMPLIANCE_PHASE = "COMPLIANCE_PHASE", "Compliance Phase"
+        HOST_REVIEW = "HOST_REVIEW", "Host Review"
         APPROVED = "APPROVED", "Approved"
         REJECTED = "REJECTED", "Rejected"
 

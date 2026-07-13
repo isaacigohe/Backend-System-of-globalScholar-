@@ -16,6 +16,7 @@ UNIVERSAL_COMPLIANCE_DOCUMENTS = [
     DocumentChecklist.DocumentType.REFERENCE_LETTER,
     DocumentChecklist.DocumentType.MEDICAL_CLEARANCE,
     DocumentChecklist.DocumentType.INSURANCE_PROOF,
+    DocumentChecklist.DocumentType.VISA_COPY,
 ]
 
 # Language test is only required if the destination university flags it.
