@@ -22,7 +22,8 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("role", User.Role.HOME_ADMIN)
+        extra_fields.setdefault("role", User.Role.SUPER_ADMIN)
+        extra_fields.setdefault("is_verified", True)
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Superuser must have is_staff=True.")
@@ -40,12 +41,14 @@ class User(AbstractBaseUser, PermissionsMixin):
       STUDENT       — applies to university programs abroad
       HOME_ADMIN    — staff at the student's home institution who approve docs
       HOST_COORD    — coordinator at the destination (host) university
+      SUPER_ADMIN   — system administrator who verifies other admins
     """
 
     class Role(models.TextChoices):
         STUDENT = "STUDENT", "Student"
         HOME_ADMIN = "HOME_ADMIN", "Home Admin"
         HOST_COORD = "HOST_COORD", "Host Coordinator"
+        SUPER_ADMIN = "SUPER_ADMIN", "Super Admin"
         
     class StudentType(models.TextChoices):
         UNDERGRADUATE = "UNDERGRADUATE", "Undergraduate Student"
@@ -71,6 +74,25 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         related_name='host_coordinators',
         help_text="The university this coordinator manages (only for HOST_COORD role)."
+    )
+
+    # ── Verification (Super Admin) ──────────────────────────────────────────
+    is_verified = models.BooleanField(
+        default=False,
+        help_text="Whether this user has been verified by a Super Admin. Students are auto-verified."
+    )
+    verified_by = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='verified_users',
+        help_text="Super Admin who verified this user."
+    )
+    verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this user was verified."
     )
 
     # ── Student-specific fields ───────────────────────────────────────────────
@@ -143,6 +165,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_host_coordinator(self):
         return self.role == self.Role.HOST_COORD
+    
+    @property
+    def is_super_admin(self):
+        return self.role == self.Role.SUPER_ADMIN
     
     @property
     def is_high_school_student(self):
