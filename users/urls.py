@@ -6,6 +6,7 @@ from .views import (
     LoginView,
     LogoutView,
     MyProfileView,
+    UpdateProfileView,
     UnverifiedAdminsListView,
     VerifyAdminView,
     RejectAdminView,
@@ -22,6 +23,7 @@ urlpatterns = [
 
     # ── User Profile ──────────────────────────────────────────────────────────
     path("users/me/", MyProfileView.as_view(), name="user-me"),
+    path("users/update-profile/", UpdateProfileView.as_view(), name="update-profile"),
 
     # ── Super Admin Routes ────────────────────────────────────────────────────
     path("users/unverified-admins/", UnverifiedAdminsListView.as_view(), name="unverified-admins"),

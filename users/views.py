@@ -10,6 +10,7 @@ from django.db.models import Q
 from .serializers import (
     UserRegistrationSerializer,
     UserProfileSerializer,
+    UserProfileUpdateSerializer,
     CustomTokenObtainPairSerializer,
 )
 from .throttles import LoginRateThrottle
@@ -84,6 +85,27 @@ class MyProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class UpdateProfileView(generics.UpdateAPIView):
+    """
+    PATCH /api/v1/users/update-profile/
+    Allow users to update their profile information.
+    Students can update: gpa, major, home_institution, enrollment_year, student_type
+    Admins can update: first_name, last_name
+    Host Coordinators can update: first_name, last_name (university is fixed)
+    """
+    serializer_class = UserProfileUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["patch", "head", "options"]
+
+    def get_object(self):
+        return self.request.user
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 
 # ── SUPER ADMIN VIEWS ─────────────────────────────────────────────────────────

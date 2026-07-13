@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status as drf_status
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 import django_filters
@@ -18,13 +19,13 @@ from .serializers import (
 
 # ── Custom Pagination ──────────────────────────────────────────────────────────
 class UniversityPagination(PageNumberPagination):
-    page_size = 6  # 6 universities per page
+    page_size = 6
     page_size_query_param = 'page_size'
     max_page_size = 20
 
 
 class ProgramPagination(PageNumberPagination):
-    page_size = 10  # 10 programs per page
+    page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 50
 
@@ -57,6 +58,7 @@ class UniversityListCreateView(generics.ListCreateAPIView):
                                    Paginated: 6 universities per page.
 
     POST /api/v1/universities/   — Admin/Coordinator only.
+                                   Supports image upload via multipart/form-data.
 
     Filter params: ?country=Germany&min_gpa=3.0&language=English
     Search params: ?search=Berlin
@@ -70,6 +72,7 @@ class UniversityListCreateView(generics.ListCreateAPIView):
     ordering_fields = ["name", "country", "minimum_gpa", "created_at"]
     ordering = ["country", "name"]
     pagination_class = UniversityPagination
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -92,11 +95,12 @@ class UniversityDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET    /api/v1/universities/<id>/   — PUBLIC. Full detail with nested programs.
                                           Anyone can view a university's full profile.
-    PATCH  /api/v1/universities/<id>/   — Admin/Coordinator only.
+    PATCH  /api/v1/universities/<id>/   — Admin/Coordinator only. Supports image upload.
     DELETE /api/v1/universities/<id>/   — Admin/Coordinator only.
     """
     queryset = University.objects.prefetch_related("programs").all()
     serializer_class = UniversitySerializer
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_serializer_context(self):
         """Add request to context for generating absolute image URLs"""
@@ -118,7 +122,7 @@ class ProgramListCreateView(generics.ListCreateAPIView):
     serializer_class = ProgramSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     ordering_fields = ["name", "degree_level", "application_deadline"]
-    pagination_class = ProgramPagination  # ADDED: pagination for programs
+    pagination_class = ProgramPagination
 
     def get_queryset(self):
         university_id = self.kwargs["university_id"]

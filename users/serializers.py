@@ -90,6 +90,37 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return None
 
 
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating user profiles with role-based permissions"""
+    
+    class Meta:
+        model = User
+        fields = [
+            'first_name', 'last_name', 
+            'gpa', 'major', 'home_institution', 'enrollment_year', 'student_type'
+        ]
+        
+    def validate(self, attrs):
+        user = self.instance
+        role = user.role
+        
+        # Host Coordinators cannot change university through profile
+        if role == User.Role.HOST_COORD:
+            if 'host_university' in attrs:
+                raise serializers.ValidationError({
+                    'host_university': 'Host Coordinators cannot change their assigned university.'
+                })
+        
+        # Students must have student_type if they are updating student fields
+        if role == User.Role.STUDENT:
+            if 'student_type' in attrs and not attrs.get('student_type'):
+                raise serializers.ValidationError({
+                    'student_type': 'Student type is required for students.'
+                })
+        
+        return attrs
+
+
 class UserPublicSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
 
