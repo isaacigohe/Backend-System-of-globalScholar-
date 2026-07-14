@@ -3,7 +3,6 @@ from .models import University, Program
 
 
 class ProgramSerializer(serializers.ModelSerializer):
-    # ── Make description optional ──────────────────────────────────────────
     description = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -37,23 +36,17 @@ class ProgramSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        # If description is not provided, set it to empty string
         if 'description' not in validated_data or validated_data.get('description') is None:
             validated_data['description'] = ''
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        # If description is not provided in update, keep existing
         if 'description' not in validated_data:
             validated_data['description'] = instance.description
         return super().update(instance, validated_data)
 
 
 class UniversitySerializer(serializers.ModelSerializer):
-    """
-    FULL detail serializer for university detail page.
-    Includes ALL programs and complete university information.
-    """
     programs = ProgramSerializer(many=True, read_only=True)
     program_count = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
@@ -82,19 +75,18 @@ class UniversitySerializer(serializers.ModelSerializer):
     
     def get_image_url(self, obj):
         """Return the full URL for the university image"""
-        if obj.image:
+        if obj.image and obj.image.name:
             request = self.context.get('request')
             if request:
+                # ── FIX: Use build_absolute_uri for full URL ────────────────
                 return request.build_absolute_uri(obj.image.url)
             return obj.image.url
         return None
     
     def get_display_name(self, obj):
-        """Return formatted display name"""
         return obj.name
     
     def get_location(self, obj):
-        """Return formatted location (city, country)"""
         if obj.city:
             return f"{obj.city}, {obj.country}"
         return obj.country
@@ -115,10 +107,6 @@ class UniversitySerializer(serializers.ModelSerializer):
 
 
 class UniversityListSerializer(serializers.ModelSerializer):
-    """
-    LIGHTWEIGHT serializer for landing page list views.
-    Fast and small - only essential fields for browsing.
-    """
     program_count = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     location = serializers.SerializerMethodField()
@@ -136,9 +124,11 @@ class UniversityListSerializer(serializers.ModelSerializer):
         return obj.programs.count()
     
     def get_image_url(self, obj):
-        if obj.image:
+        """Return the full URL for the university image"""
+        if obj.image and obj.image.name:
             request = self.context.get('request')
             if request:
+                # ── FIX: Use build_absolute_uri for full URL ────────────────
                 return request.build_absolute_uri(obj.image.url)
             return obj.image.url
         return None

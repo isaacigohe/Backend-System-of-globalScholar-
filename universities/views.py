@@ -54,16 +54,7 @@ class UniversityFilter(django_filters.FilterSet):
 class UniversityListCreateView(generics.ListCreateAPIView):
     """
     GET  /api/v1/universities/   — PUBLIC. No token needed.
-                                   Anyone can browse universities before registering.
-                                   Paginated: 6 universities per page.
-
-    POST /api/v1/universities/   — Admin/Coordinator only.
-                                   Supports image upload via multipart/form-data.
-
-    Filter params: ?country=Germany&min_gpa=3.0&language=English
-    Search params: ?search=Berlin
-    Order params:  ?ordering=minimum_gpa or ?ordering=-name
-    Page params:   ?page=2 (for pagination)
+    POST /api/v1/universities/   — Admin/Coordinator only. Supports image upload.
     """
     queryset = University.objects.prefetch_related("programs").all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -94,7 +85,6 @@ class UniversityListCreateView(generics.ListCreateAPIView):
 class UniversityDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET    /api/v1/universities/<id>/   — PUBLIC. Full detail with nested programs.
-                                          Anyone can view a university's full profile.
     PATCH  /api/v1/universities/<id>/   — Admin/Coordinator only. Supports image upload.
     DELETE /api/v1/universities/<id>/   — Admin/Coordinator only.
     """
