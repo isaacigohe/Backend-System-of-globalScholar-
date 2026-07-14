@@ -71,7 +71,6 @@ class UniversityListCreateView(generics.ListCreateAPIView):
         return UniversitySerializer
 
     def get_serializer_context(self):
-        """Add request to context for generating absolute image URLs"""
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
@@ -93,7 +92,6 @@ class UniversityDetailView(generics.RetrieveUpdateDestroyAPIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def get_serializer_context(self):
-        """Add request to context for generating absolute image URLs"""
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
@@ -102,6 +100,11 @@ class UniversityDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method == "GET":
             return [permissions.AllowAny()]
         return [IsAdminOrCoordinator()]
+
+    def perform_update(self, serializer):
+        """Handle image upload properly"""
+        instance = serializer.save()
+        return instance
 
 
 class ProgramListCreateView(generics.ListCreateAPIView):
