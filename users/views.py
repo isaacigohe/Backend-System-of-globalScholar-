@@ -34,19 +34,13 @@ class LoginView(TokenObtainPairView):
     POST /api/v1/auth/login/
     Returns access + refresh JWT tokens.
     Throttled to 5 requests/min via LoginRateThrottle.
-    
-    Checks if HOME_ADMIN or HOST_COORD users are verified before allowing login.
     """
     serializer_class = CustomTokenObtainPairSerializer
     throttle_classes = [LoginRateThrottle]
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
-        # Get the user from the request
         response = super().post(request, *args, **kwargs)
-        
-        # Check if user is verified (the serializer handles this)
-        # If the serializer raised an error, it will be returned in the response
         return response
 
 
@@ -91,9 +85,6 @@ class UpdateProfileView(generics.UpdateAPIView):
     """
     PATCH /api/v1/users/update-profile/
     Allow users to update their profile information.
-    Students can update: gpa, major, home_institution, enrollment_year, student_type
-    Admins can update: first_name, last_name
-    Host Coordinators can update: first_name, last_name (university is fixed)
     """
     serializer_class = UserProfileUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -120,11 +111,15 @@ class UnverifiedAdminsListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsSuperAdmin]
 
     def get_queryset(self):
-        return User.objects.filter(
+        # ── FIX: Get ALL unverified admins ──────────────────────────────────
+        queryset = User.objects.filter(
             role__in=[User.Role.HOME_ADMIN, User.Role.HOST_COORD],
             is_verified=False,
             is_active=True
-        ).select_related('host_university', 'verified_by')
+        ).select_related('host_university', 'verified_by').order_by('-date_joined')
+        
+        print(f"🔍 Found {queryset.count()} unverified admins")  # Debug log
+        return queryset
 
 
 class VerifyAdminView(APIView):
@@ -143,7 +138,6 @@ class VerifyAdminView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Can only verify HOME_ADMIN or HOST_COORD
         if user.role not in [User.Role.HOME_ADMIN, User.Role.HOST_COORD]:
             return Response(
                 {"detail": f"User with role '{user.role}' cannot be verified."},
@@ -156,13 +150,11 @@ class VerifyAdminView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Verify the user
         user.is_verified = True
         user.verified_by = request.user
         user.verified_at = timezone.now()
         user.save()
         
-        # ── Send notification to the verified admin ─────────────────────────
         try:
             from notifications.utils import create_notification
             create_notification(
@@ -172,18 +164,12 @@ class VerifyAdminView(APIView):
                 message=f"Your {user.get_role_display()} account has been verified by {request.user.get_full_name()}. You can now access the admin dashboard.",
                 link="/login",
             )
-        except ImportError:
-            pass  # Notifications app might not be installed
-        
-        # ── Send notification to the Super Admin who verified ──────────────
-        try:
-            from notifications.utils import create_notification
             create_notification(
                 user=request.user,
                 notification_type="ADMIN_VERIFIED",
                 title="✅ Admin Verified",
                 message=f"You verified {user.get_full_name()} ({user.email}) as a {user.get_role_display()}.",
-                link=f"/users/{user.id}/",
+                link="/super-admin",
             )
         except ImportError:
             pass
@@ -210,7 +196,6 @@ class RejectAdminView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Can only reject HOME_ADMIN or HOST_COORD
         if user.role not in [User.Role.HOME_ADMIN, User.Role.HOST_COORD]:
             return Response(
                 {"detail": f"User with role '{user.role}' cannot be rejected."},
@@ -223,7 +208,6 @@ class RejectAdminView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # ── Send notification to the rejected admin ──────────────────────────
         try:
             from notifications.utils import create_notification
             create_notification(
@@ -236,7 +220,6 @@ class RejectAdminView(APIView):
         except ImportError:
             pass
         
-        # Delete the unverified user
         user.delete()
         
         return Response({
@@ -260,8 +243,7 @@ class SearchUsersView(generics.ListAPIView):
         return User.objects.filter(
             Q(email__icontains=query) |
             Q(first_name__icontains=query) |
-            Q(last_name__icontains=query) |
-            Q(first_name__icontains=query) | Q(last_name__icontains=query)
+            Q(last_name__icontains=query)
         ).select_related('host_university', 'verified_by')
 
 
